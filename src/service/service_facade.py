@@ -1,0 +1,147 @@
+from datetime import datetime, date
+from typing import Optional
+
+from interfaces.communication import (
+    ISerialReader,
+    IServerClient,
+    IControlNodeSender,
+    INotifier,
+)
+from interfaces.service import (
+    IPostureDetector,
+    IPressureAnalyzer,
+    ILogManager,
+    IControlGenerator,
+    IAlertChecker,
+    IServiceFacade,
+)
+from domain.models import Patient, CycleResult
+
+
+class ServiceFacade(IServiceFacade):
+    """서비스 계층 통합 Facade"""
+
+    def __init__(
+        self,
+        serial_reader: ISerialReader,
+        server_client: IServerClient,
+        control_sender: IControlNodeSender,
+        notifier: INotifier,
+        posture_detector: IPostureDetector,
+        pressure_analyzer: IPressureAnalyzer,
+        log_manager: ILogManager,
+        control_generator: IControlGenerator,
+        alert_checker: IAlertChecker,
+        device_id: int,
+    ):
+        self._serial_reader = serial_reader
+        self._server_client = server_client
+        self._control_sender = control_sender
+        self._notifier = notifier
+        self._posture_detector = posture_detector
+        self._pressure_analyzer = pressure_analyzer
+        self._log_manager = log_manager
+        self._control_generator = control_generator
+        self._alert_checker = alert_checker
+        self._device_id = device_id
+        self._patient: Optional[Patient] = None
+
+    async def initialize(self) -> None:
+        """초기화 - 환자 정보 로드"""
+        # Supabase 클라이언트 초기화
+        await self._server_client.initialize()
+
+        # device_id로 환자 정보 조회
+        self._patient = await self._server_client.async_fetch_patient_with_device(
+            self._device_id
+        )
+
+        # 로그 매니저에 device_id 설정
+        self._log_manager.set_device_id(self._device_id)
+
+        # 오늘 날짜의 DayLog 조회 또는 생성
+        today = date.today().isoformat()
+        daylog = await self._server_client.async_fetch_daylog_by_date(
+            self._device_id, today
+        )
+
+        if daylog:
+            self._log_manager.set_daylog(daylog)
+        else:
+            # 새 DayLog 생성
+            new_daylog = self._log_manager.get_current_daylog()
+            created_daylog = await self._server_client.async_create_daylog(new_daylog)
+            self._log_manager.set_daylog(created_daylog)
+
+    async def process_cycle(self) -> CycleResult:
+        """한 사이클 처리 후 결과 반환"""
+        # (b) 시리얼 데이터 읽기 및 행렬 변환
+        raw_data = self._serial_reader.read_raw()
+        pressure_matrix = self._serial_reader.to_matrix(raw_data)
+
+        # 히트맵 실시간 업데이트
+        await self._server_client.async_update_heatmap(self._device_id, pressure_matrix)
+
+        # (f) 자세 추론
+        posture = self._posture_detector.detect(pressure_matrix)
+
+        # (g) 압력 부위 분석
+        pressures = self._pressure_analyzer.analyze(posture, pressure_matrix)
+
+        # (h) 로그 기록
+        self._log_manager.record(pressures, posture)
+        durations = self._log_manager.get_durations()
+
+        # 자세 변경 필요 여부 확인
+        posture_change_required = False
+        if self._patient:
+            posture_change_required = self._alert_checker.check_posture_change_required(
+                self._patient, durations
+            )
+
+        # PressureLog 생성
+        daylog = self._log_manager.get_current_daylog()
+        pressure_log = self._log_manager.create_pressure_log(
+            day_id=daylog.id,
+            pressures=pressures,
+            posture=posture,
+            posture_change_required=posture_change_required,
+        )
+
+        # (a) 서버에 로그 업로드
+        await self._server_client.async_create_pressurelog(pressure_log)
+        await self._server_client.async_update_daylog(daylog)
+
+        # (i) 제어 신호 생성
+        control_signal = self._control_generator.generate(pressures, durations)
+
+        # (c) 제어 신호 전송
+        if control_signal.target_zones:
+            await self._control_sender.send_signal(control_signal)
+
+        # 알림 체크 및 전송
+        alert_sent = False
+        if self._patient and posture_change_required:
+            alert_message = self._alert_checker.check(self._patient, durations)
+            if alert_message:
+                # (e) 푸시 알림 전송
+                await self._notifier.send_notification(alert_message)
+                alert_sent = True
+
+        return CycleResult(
+            posture=posture,
+            pressure_log=pressure_log,
+            control_signal=control_signal,
+            alert_sent=alert_sent,
+            posture_change_required=posture_change_required,
+            durations=durations,
+            timestamp=datetime.now(),
+        )
+
+    def get_patient(self) -> Optional[Patient]:
+        """환자 정보 조회"""
+        return self._patient
+
+    def get_device_id(self) -> int:
+        """디바이스 ID 조회"""
+        return self._device_id

@@ -1,0 +1,84 @@
+from dataclasses import dataclass
+
+from config.settings import Settings
+
+# 인터페이스
+from interfaces.communication import (
+    ISerialReader,
+    IServerClient,
+    IControlNodeSender,
+    INotifier,
+)
+from interfaces.service import IServiceFacade
+from interfaces.presentation import IDisplay
+
+# 구현체
+from communication.serial_handler import SerialHandler
+from communication.supabase_client import SupabaseClient
+from communication.control_sender import ControlSender
+from communication.fcm_notifier import FCMNotifier
+
+from service.posture_detector import PostureDetector
+from service.pressure_analyzer import PressureAnalyzer
+from service.log_manager import LogManager
+from service.control_service import ControlGenerator
+from service.alert_service import AlertChecker
+from service.service_facade import ServiceFacade
+
+from presentation.console_display import ConsoleDisplay
+
+
+@dataclass
+class Container:
+    """의존성 주입 컨테이너"""
+
+    serial_reader: ISerialReader
+    server_client: IServerClient
+    control_sender: IControlNodeSender
+    notifier: INotifier
+    service_facade: IServiceFacade
+    display: IDisplay
+
+
+def create_container(settings: Settings) -> Container:
+    """프로덕션 의존성 구성"""
+
+    # 통신 계층
+    serial_reader = SerialHandler(settings.serial_port, settings.baudrate)
+    server_client = SupabaseClient(settings.supabase_url, settings.supabase_key)
+    control_sender = ControlSender(
+        settings.control_node_address, settings.control_node_port
+    )
+    notifier = FCMNotifier(settings.fcm_credentials)
+
+    # 서비스 계층
+    posture_detector = PostureDetector()
+    pressure_analyzer = PressureAnalyzer()
+    log_manager = LogManager(settings.device_id)
+    control_generator = ControlGenerator()
+    alert_checker = AlertChecker()
+
+    service_facade = ServiceFacade(
+        serial_reader=serial_reader,
+        server_client=server_client,
+        control_sender=control_sender,
+        notifier=notifier,
+        posture_detector=posture_detector,
+        pressure_analyzer=pressure_analyzer,
+        log_manager=log_manager,
+        control_generator=control_generator,
+        alert_checker=alert_checker,
+        device_id=settings.device_id,
+    )
+
+    # 표현 계층
+    display = ConsoleDisplay()
+
+    return Container(
+        serial_reader=serial_reader,
+        server_client=server_client,
+        control_sender=control_sender,
+        notifier=notifier,
+        service_facade=service_facade,
+        display=display,
+    )

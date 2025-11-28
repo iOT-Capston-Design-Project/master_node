@@ -14,6 +14,10 @@ rich>=13.0.0
 # Async
 asyncio-mqtt>=0.16.0  # Optional: MQTT support
 
+# AI
+joblib
+scikit-learn
+
 # Testing
 pytest>=7.0.0
 pytest-asyncio>=0.21.0

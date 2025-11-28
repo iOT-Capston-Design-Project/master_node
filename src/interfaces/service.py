@@ -9,6 +9,7 @@ from domain.models import (
     ControlSignal,
     AlertMessage,
     CycleResult,
+    PostureDetectionResult,
 )
 from domain.enums import PostureType, BodyPart
 
@@ -17,7 +18,7 @@ class IPostureDetector(ABC):
     """자세 추론 인터페이스 (f)"""
 
     @abstractmethod
-    def detect(self, pressure_matrix: np.ndarray) -> PostureType:
+    def detect(self, pressure_matrix: np.ndarray) -> PostureDetectionResult:
         """압력 행렬로부터 자세 추론"""
         pass
 

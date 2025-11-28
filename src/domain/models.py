@@ -195,6 +195,19 @@ class PressureLog:
 
 
 @dataclass
+class PostureDetectionResult:
+    """자세 감지 결과 (ML 모델 추론 결과)"""
+    posture_type: PostureType
+    occiput: bool = False       # 후두부 압력 여부
+    scapula: bool = False       # 견갑골 압력 여부
+    right_elbow: bool = False   # 오른쪽 팔꿈치 압력 여부
+    left_elbow: bool = False    # 왼쪽 팔꿈치 압력 여부
+    hip: bool = False           # 엉덩이 압력 여부
+    right_heel: bool = False    # 오른쪽 발뒤꿈치 압력 여부
+    left_heel: bool = False     # 왼쪽 발뒤꿈치 압력 여부
+
+
+@dataclass
 class ControlSignal:
     """컨트롤 노드 제어 신호"""
     target_zones: List[int]  # 제어할 영역 번호

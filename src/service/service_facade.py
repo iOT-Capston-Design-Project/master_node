@@ -83,7 +83,8 @@ class ServiceFacade(IServiceFacade):
         await self._server_client.async_update_heatmap(self._device_id, pressure_matrix)
 
         # (f) 자세 추론
-        posture = self._posture_detector.detect(pressure_matrix)
+        detection_result = self._posture_detector.detect(pressure_matrix)
+        posture = detection_result.posture_type
 
         # (g) 압력 부위 분석
         pressures = self._pressure_analyzer.analyze(posture, pressure_matrix)

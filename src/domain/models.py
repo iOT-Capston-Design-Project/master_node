@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, date
 
 from .enums import PostureType, BodyPart
@@ -56,16 +56,22 @@ class DeviceData:
     """디바이스 정보"""
     id: int
     created_at: datetime
+    controls: Optional[dict] = None  # 서버에서 받은 제어 명령 (JSON, nullable)
 
     @staticmethod
     def from_dict(data: dict) -> "DeviceData":
         created_at = datetime.fromisoformat(data["created_at"])
-        return DeviceData(id=int(data["id"]), created_at=created_at)
+        return DeviceData(
+            id=int(data["id"]),
+            created_at=created_at,
+            controls=data.get("controls"),
+        )
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "created_at": self.created_at.isoformat(),
+            "controls": self.controls,
         }
 
 
@@ -208,11 +214,20 @@ class PostureDetectionResult:
 
 
 @dataclass
-class ControlSignal:
-    """컨트롤 노드 제어 신호"""
-    target_zones: List[int]  # 제어할 영역 번호
-    action: str              # "inflate" | "deflate" | "none"
-    intensity: int           # 0-100
+class ControlPacket:
+    """컨트롤 노드로 전송할 통합 패킷"""
+    posture: PostureType
+    pressures: dict[str, int]       # BodyPart.value -> 압력값
+    durations: dict[str, int]       # BodyPart.value -> 지속시간(초)
+    controls: Optional[dict] = None  # 서버에서 받은 제어 명령 (nullable)
+
+    def to_dict(self) -> dict:
+        return {
+            "posture": self.posture.value,
+            "pressures": self.pressures,
+            "durations": self.durations,
+            "controls": self.controls,
+        }
 
 
 @dataclass
@@ -229,7 +244,7 @@ class CycleResult:
     """한 사이클 처리 결과"""
     posture: PostureType
     pressure_log: PressureLog
-    control_signal: ControlSignal
+    control_packet: ControlPacket
     alert_sent: bool
     posture_change_required: bool
     durations: dict  # 부위별 압력 지속 시간 (초)

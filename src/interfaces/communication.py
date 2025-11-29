@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional
 import numpy as np
 
 from domain.models import (
@@ -7,7 +7,7 @@ from domain.models import (
     DeviceData,
     DayLog,
     PressureLog,
-    ControlSignal,
+    ControlPacket,
     AlertMessage,
 )
 
@@ -95,6 +95,12 @@ class IServerClient(ABC):
         """히트맵 실시간 업데이트"""
         pass
 
+    # Controls 조회
+    @abstractmethod
+    async def async_fetch_device_controls(self, device_id: int) -> Optional[dict]:
+        """디바이스 controls 컬럼 조회"""
+        pass
+
 
 class IControlNodeSender(ABC):
     """컨트롤 노드 통신 인터페이스 (c)"""
@@ -110,8 +116,8 @@ class IControlNodeSender(ABC):
         pass
 
     @abstractmethod
-    async def send_signal(self, signal: ControlSignal) -> bool:
-        """제어 신호 전송"""
+    async def send_packet(self, packet: ControlPacket) -> bool:
+        """통합 패킷 전송 (자세, 압력, 지속시간, controls 포함)"""
         pass
 
 

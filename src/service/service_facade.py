@@ -11,11 +11,10 @@ from interfaces.service import (
     IPostureDetector,
     IPressureAnalyzer,
     ILogManager,
-    IControlGenerator,
     IAlertChecker,
     IServiceFacade,
 )
-from domain.models import Patient, CycleResult
+from domain.models import Patient, CycleResult, ControlPacket
 
 
 class ServiceFacade(IServiceFacade):
@@ -30,7 +29,6 @@ class ServiceFacade(IServiceFacade):
         posture_detector: IPostureDetector,
         pressure_analyzer: IPressureAnalyzer,
         log_manager: ILogManager,
-        control_generator: IControlGenerator,
         alert_checker: IAlertChecker,
         device_id: int,
     ):
@@ -41,7 +39,6 @@ class ServiceFacade(IServiceFacade):
         self._posture_detector = posture_detector
         self._pressure_analyzer = pressure_analyzer
         self._log_manager = log_manager
-        self._control_generator = control_generator
         self._alert_checker = alert_checker
         self._device_id = device_id
         self._patient: Optional[Patient] = None
@@ -113,12 +110,19 @@ class ServiceFacade(IServiceFacade):
         await self._server_client.async_create_pressurelog(pressure_log)
         await self._server_client.async_update_daylog(daylog)
 
-        # (i) 제어 신호 생성
-        control_signal = self._control_generator.generate(pressures, durations)
+        # 서버에서 controls 조회
+        controls = await self._server_client.async_fetch_device_controls(self._device_id)
 
-        # (c) 제어 신호 전송
-        if control_signal.target_zones:
-            await self._control_sender.send_signal(control_signal)
+        # 통합 패킷 생성
+        control_packet = ControlPacket(
+            posture=posture,
+            pressures={bp.value: v for bp, v in pressures.items()},
+            durations={bp.value: v for bp, v in durations.items()},
+            controls=controls,
+        )
+
+        # (c) 컨트롤 노드에 통합 패킷 전송
+        await self._control_sender.send_packet(control_packet)
 
         # 알림 체크 및 전송
         alert_sent = False
@@ -132,7 +136,7 @@ class ServiceFacade(IServiceFacade):
         return CycleResult(
             posture=posture,
             pressure_log=pressure_log,
-            control_signal=control_signal,
+            control_packet=control_packet,
             alert_sent=alert_sent,
             posture_change_required=posture_change_required,
             durations=durations,

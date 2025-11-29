@@ -3,7 +3,7 @@ from .models import (
     DeviceData,
     DayLog,
     PressureLog,
-    ControlSignal,
+    ControlPacket,
     AlertMessage,
     CycleResult,
 )
@@ -14,7 +14,7 @@ __all__ = [
     "DeviceData",
     "DayLog",
     "PressureLog",
-    "ControlSignal",
+    "ControlPacket",
     "AlertMessage",
     "CycleResult",
     "PostureType",

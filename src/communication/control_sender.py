@@ -2,7 +2,7 @@ import asyncio
 import json
 
 from interfaces.communication import IControlNodeSender
-from domain.models import ControlSignal
+from domain.models import ControlPacket
 
 
 class ControlSender(IControlNodeSender):
@@ -26,18 +26,12 @@ class ControlSender(IControlNodeSender):
             self._writer.close()
             await self._writer.wait_closed()
 
-    async def send_signal(self, signal: ControlSignal) -> bool:
-        """제어 신호 전송"""
+    async def send_packet(self, packet: ControlPacket) -> bool:
+        """통합 패킷 전송 (자세, 압력, 지속시간, controls 포함)"""
         if not self._writer:
             raise ConnectionError("Not connected to control node")
 
-        data = {
-            "target_zones": signal.target_zones,
-            "action": signal.action,
-            "intensity": signal.intensity,
-        }
-
-        message = json.dumps(data).encode() + b"\n"
+        message = json.dumps(packet.to_dict()).encode() + b"\n"
         self._writer.write(message)
         await self._writer.drain()
 

@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 import numpy as np
 
 from domain.models import (
     Patient,
     DayLog,
     PressureLog,
-    ControlSignal,
     AlertMessage,
     CycleResult,
     PostureDetectionResult,
@@ -69,17 +68,6 @@ class ILogManager(ABC):
     @abstractmethod
     def reset_durations(self) -> None:
         """지속 시간 초기화"""
-        pass
-
-
-class IControlGenerator(ABC):
-    """제어 신호 생성 인터페이스 (i)"""
-
-    @abstractmethod
-    def generate(
-        self, pressures: dict[BodyPart, int], durations: dict[BodyPart, int]
-    ) -> ControlSignal:
-        """압력 및 지속시간으로부터 제어 신호 생성"""
         pass
 
 

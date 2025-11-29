@@ -9,7 +9,7 @@ from rich.layout import Layout
 from rich.live import Live
 
 from interfaces.presentation import IDisplay
-from domain.models import CycleResult, Patient, ControlSignal
+from domain.models import CycleResult, Patient, ControlPacket
 from domain.enums import PostureType, BodyPart
 
 
@@ -217,19 +217,17 @@ class ConsoleDisplay(IDisplay):
 
         elements.append(duration_table)
 
-        # 제어 신호 테이블
-        control_table = Table(title="제어 신호", expand=True)
-        control_table.add_column("대상 영역", style="yellow")
-        control_table.add_column("동작", justify="center")
-        control_table.add_column("강도", justify="right")
+        # 서버 제어 명령 테이블
+        control_table = Table(title="서버 제어 명령", expand=True)
+        control_table.add_column("항목", style="yellow")
+        control_table.add_column("값", justify="right")
 
-        if self._last_result and self._last_result.control_signal.target_zones:
-            signal = self._last_result.control_signal
-            zones_str = ", ".join(str(z) for z in signal.target_zones)
-            action_str = "공기 주입" if signal.action == "inflate" else "공기 배출"
-            control_table.add_row(zones_str, action_str, f"{signal.intensity}%")
+        if self._last_result and self._last_result.control_packet.controls:
+            controls = self._last_result.control_packet.controls
+            for key, value in controls.items():
+                control_table.add_row(str(key), str(value))
         else:
-            control_table.add_row("-", "[dim]없음[/dim]", "-")
+            control_table.add_row("-", "[dim]없음[/dim]")
 
         elements.append(control_table)
 
@@ -253,8 +251,8 @@ class ConsoleDisplay(IDisplay):
         self._serial_connected = True  # 결과가 오면 시리얼은 연결된 상태
         self._refresh()
 
-    def show_control_signal(self, signal: ControlSignal) -> None:
-        """제어 신호 표시 (결과에 포함되어 있어 별도 처리 불필요)"""
+    def show_control_packet(self, packet: ControlPacket) -> None:
+        """제어 패킷 표시 (결과에 포함되어 있어 별도 처리 불필요)"""
         pass
 
     def show_patient_info(self, patient: Optional[Patient], device_id: int) -> None:

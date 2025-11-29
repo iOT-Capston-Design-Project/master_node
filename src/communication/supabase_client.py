@@ -223,3 +223,23 @@ class SupabaseClient(IServerClient):
         except Exception as e:
             self._logger.error(f"Error updating heatmap for device {device_id}: {e}")
             return False
+
+    async def async_fetch_device_controls(self, device_id: int) -> Optional[dict]:
+        """디바이스 controls 컬럼 조회"""
+        if not self._client:
+            self._logger.error("Supabase client is not initialized")
+            return None
+
+        try:
+            response = (
+                await self._client.table("devices")
+                .select("controls")
+                .eq("id", device_id)
+                .execute()
+            )
+            if response.data:
+                return response.data[0].get("controls")
+            return None
+        except Exception as e:
+            self._logger.error(f"Error fetching controls for device {device_id}: {e}")
+            return None

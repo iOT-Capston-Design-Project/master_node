@@ -21,7 +21,6 @@ from communication.fcm_notifier import FCMNotifier
 from service.posture_detector import PostureDetector
 from service.pressure_analyzer import PressureAnalyzer
 from service.log_manager import LogManager
-from service.control_service import ControlGenerator
 from service.alert_service import AlertChecker
 from service.service_facade import ServiceFacade
 
@@ -55,7 +54,6 @@ def create_container(settings: Settings) -> Container:
     posture_detector = PostureDetector()
     pressure_analyzer = PressureAnalyzer()
     log_manager = LogManager(settings.device_id)
-    control_generator = ControlGenerator()
     alert_checker = AlertChecker()
 
     service_facade = ServiceFacade(
@@ -66,7 +64,6 @@ def create_container(settings: Settings) -> Container:
         posture_detector=posture_detector,
         pressure_analyzer=pressure_analyzer,
         log_manager=log_manager,
-        control_generator=control_generator,
         alert_checker=alert_checker,
         device_id=settings.device_id,
     )

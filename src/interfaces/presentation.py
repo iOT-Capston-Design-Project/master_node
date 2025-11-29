@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from domain.models import CycleResult, Patient, ControlSignal
+from domain.models import CycleResult, Patient, ControlPacket
 
 
 class IDisplay(ABC):
@@ -13,8 +13,8 @@ class IDisplay(ABC):
         pass
 
     @abstractmethod
-    def show_control_signal(self, signal: ControlSignal) -> None:
-        """제어 신호 표시"""
+    def show_control_packet(self, packet: ControlPacket) -> None:
+        """제어 패킷 표시"""
         pass
 
     @abstractmethod

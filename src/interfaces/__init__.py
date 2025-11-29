@@ -8,7 +8,6 @@ from .service import (
     IPostureDetector,
     IPressureAnalyzer,
     ILogManager,
-    IControlGenerator,
     IAlertChecker,
     IServiceFacade,
 )
@@ -22,7 +21,6 @@ __all__ = [
     "IPostureDetector",
     "IPressureAnalyzer",
     "ILogManager",
-    "IControlGenerator",
     "IAlertChecker",
     "IServiceFacade",
     "IDisplay",

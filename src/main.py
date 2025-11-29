@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import signal
 import sys
@@ -37,6 +38,7 @@ class Application:
         self._container = create_container(settings)
         self._running = False
         self._logger = logging.getLogger("application")
+        self._test_mode = settings.test_mode
 
     def _setup_logging(self) -> None:
         """TUI용 로깅 설정"""
@@ -89,6 +91,11 @@ class Application:
         self._setup_logging()
 
         try:
+            # 테스트 모드 표시
+            if self._test_mode:
+                self._container.display.set_test_mode(True)
+                self._logger.warning("========== 테스트 모드로 실행 중 ==========")
+
             # 초기화
             self._logger.info("애플리케이션 초기화 중...")
             await self._container.service_facade.initialize()
@@ -179,10 +186,31 @@ class Application:
         self._logger.info("애플리케이션 종료 완료")
 
 
+def parse_args() -> argparse.Namespace:
+    """CLI 인자 파싱"""
+    parser = argparse.ArgumentParser(
+        description="베드솔루션 마스터 노드",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--test", "-t",
+        action="store_true",
+        help="테스트 모드로 실행 (컨트롤 노드에 Mock 데이터 전송)",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
     """메인 진입점"""
+    # CLI 인자 파싱
+    args = parse_args()
+
     # 설정 로드
     settings = Settings.from_env()
+
+    # 테스트 모드 설정
+    if args.test:
+        settings.test_mode = True
 
     try:
         settings.validate()
@@ -193,6 +221,13 @@ def main() -> None:
         print("  SUPABASE_URL: Supabase URL")
         print("  SUPABASE_KEY: Supabase API Key")
         sys.exit(1)
+
+    # 테스트 모드 시작 메시지
+    if settings.test_mode:
+        print("\n" + "=" * 50)
+        print("  [TEST MODE] 테스트 모드로 실행합니다")
+        print("  컨트롤 노드에 Mock 데이터가 전송됩니다")
+        print("=" * 50 + "\n")
 
     app = Application(settings)
 

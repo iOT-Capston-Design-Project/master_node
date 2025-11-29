@@ -26,3 +26,8 @@ class IDisplay(ABC):
     def show_error(self, error: Exception) -> None:
         """에러 표시"""
         pass
+
+    @abstractmethod
+    def set_test_mode(self, enabled: bool) -> None:
+        """테스트 모드 설정"""
+        pass

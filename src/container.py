@@ -16,6 +16,7 @@ from interfaces.presentation import IDisplay
 from communication.serial_handler import SerialHandler
 from communication.supabase_client import SupabaseClient
 from communication.control_sender import ControlSender
+from communication.mock_control_sender import MockControlSender
 from communication.fcm_notifier import FCMNotifier
 
 from service.posture_detector import PostureDetector
@@ -40,14 +41,20 @@ class Container:
 
 
 def create_container(settings: Settings) -> Container:
-    """프로덕션 의존성 구성"""
+    """의존성 구성 (test_mode에 따라 Mock 사용)"""
 
     # 통신 계층
     serial_reader = SerialHandler(settings.serial_port, settings.baudrate)
     server_client = SupabaseClient(settings.supabase_url, settings.supabase_key)
-    control_sender = ControlSender(
-        settings.control_node_address, settings.control_node_port
-    )
+
+    # 테스트 모드에서는 MockControlSender 사용
+    if settings.test_mode:
+        control_sender = MockControlSender()
+    else:
+        control_sender = ControlSender(
+            settings.control_node_address, settings.control_node_port
+        )
+
     notifier = FCMNotifier(settings.fcm_credentials)
 
     # 서비스 계층

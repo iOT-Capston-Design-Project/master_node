@@ -49,6 +49,7 @@ class ConsoleDisplay(IDisplay):
         self._log_messages: deque = deque(maxlen=self.MAX_LOG_LINES)
         self._serial_connected: bool = False
         self._control_connected: bool = False
+        self._test_mode: bool = False
 
     def start_live(self) -> None:
         """Live 디스플레이 시작"""
@@ -91,11 +92,20 @@ class ConsoleDisplay(IDisplay):
             Layout(name="right"),
         )
 
-        # 헤더: 타이틀
+        # 헤더: 타이틀 (테스트 모드 표시 포함)
+        header_text = Text()
+        if self._test_mode:
+            header_text.append("[TEST MODE] ", style="bold yellow on red")
+        header_text.append("베드솔루션 모니터링 시스템", style="bold white")
+        if self._test_mode:
+            header_text.append(" [TEST MODE]", style="bold yellow on red")
+
+        header_border = "red" if self._test_mode else "blue"
         layout["header"].update(
             Panel(
-                Text("베드솔루션 모니터링 시스템", style="bold white", justify="center"),
-                border_style="blue",
+                header_text,
+                border_style=header_border,
+                title="[bold yellow]테스트 모드[/bold yellow]" if self._test_mode else None,
             )
         )
 
@@ -271,4 +281,9 @@ class ConsoleDisplay(IDisplay):
         """연결 상태 업데이트"""
         self._serial_connected = serial_connected
         self._control_connected = control_connected
+        self._refresh()
+
+    def set_test_mode(self, enabled: bool) -> None:
+        """테스트 모드 설정"""
+        self._test_mode = enabled
         self._refresh()

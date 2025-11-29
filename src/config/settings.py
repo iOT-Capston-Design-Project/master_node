@@ -44,6 +44,9 @@ class Settings:
         default_factory=lambda: float(os.getenv("CYCLE_INTERVAL", "1.0"))
     )
 
+    # 테스트 모드 (--test 플래그로 설정)
+    test_mode: bool = False
+
     @classmethod
     def from_env(cls) -> "Settings":
         """환경 변수로부터 설정 로드"""

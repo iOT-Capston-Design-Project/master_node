@@ -121,6 +121,11 @@ class Application:
             self._logger.info("컨트롤 노드 연결 중...")
             await self._connect_control_with_retry()
 
+            # 컨트롤 노드 연결 성공 시 센서 데이터 수신 시작
+            if self._control_connected:
+                await self._container.control_sender.start_listening()
+                self._logger.info("센서 데이터 수신 대기 시작")
+
             self._logger.info("모니터링 시작")
 
             # 메인 루프
@@ -139,6 +144,10 @@ class Application:
                     if not self._control_connected:
                         self._logger.info("컨트롤 노드 재연결 시도 중...")
                         await self._connect_control_with_retry()
+                        # 재연결 성공 시 센서 데이터 수신 시작
+                        if self._control_connected:
+                            await self._container.control_sender.start_listening()
+                            self._logger.info("센서 데이터 수신 대기 시작")
 
                     last_retry_time = current_time
 

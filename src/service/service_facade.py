@@ -71,9 +71,8 @@ class ServiceFacade(IServiceFacade):
             created_daylog = await self._server_client.async_create_daylog(new_daylog)
             self._log_manager.set_daylog(created_daylog)
 
-        # 컨트롤 노드로부터 센서 데이터 수신 콜백 설정 및 리스닝 시작
+        # 컨트롤 노드로부터 센서 데이터 수신 콜백 설정 (리스닝은 connect 후 main에서 시작)
         self._control_sender.set_sensor_callback(self._on_sensor_data_received)
-        await self._control_sender.start_listening()
 
     async def _on_sensor_data_received(self, sensor_data: dict) -> None:
         """컨트롤 노드로부터 센서 데이터 수신 시 처리

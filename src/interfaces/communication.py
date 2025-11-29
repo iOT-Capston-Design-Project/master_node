@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 import numpy as np
 
 from domain.models import (
@@ -101,6 +101,12 @@ class IServerClient(ABC):
         """디바이스 controls 컬럼 조회"""
         pass
 
+    # Controls 실시간 브로드캐스팅
+    @abstractmethod
+    async def async_broadcast_controls(self, device_id: int, controls_data: dict) -> bool:
+        """컨트롤 노드로부터 받은 센서 데이터를 실시간 브로드캐스팅"""
+        pass
+
 
 class IControlNodeSender(ABC):
     """컨트롤 노드 통신 인터페이스 (c)"""
@@ -118,6 +124,25 @@ class IControlNodeSender(ABC):
     @abstractmethod
     async def send_packet(self, packet: ControlPacket) -> bool:
         """통합 패킷 전송 (자세, 압력, 지속시간, controls 포함)"""
+        pass
+
+    @abstractmethod
+    def set_sensor_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
+        """센서 데이터 수신 콜백 설정
+
+        Args:
+            callback: 센서 데이터(inflated_zones, timestamp) 수신 시 호출될 콜백
+        """
+        pass
+
+    @abstractmethod
+    async def start_listening(self) -> None:
+        """컨트롤 노드로부터 센서 데이터 수신 시작"""
+        pass
+
+    @abstractmethod
+    async def stop_listening(self) -> None:
+        """센서 데이터 수신 중지"""
         pass
 
 

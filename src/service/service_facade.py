@@ -70,6 +70,20 @@ class ServiceFacade(IServiceFacade):
             created_daylog = await self._server_client.async_create_daylog(new_daylog)
             self._log_manager.set_daylog(created_daylog)
 
+        # 컨트롤 노드로부터 센서 데이터 수신 콜백 설정 및 리스닝 시작
+        self._control_sender.set_sensor_callback(self._on_sensor_data_received)
+        await self._control_sender.start_listening()
+
+    async def _on_sensor_data_received(self, sensor_data: dict) -> None:
+        """컨트롤 노드로부터 센서 데이터 수신 시 처리
+
+        Args:
+            sensor_data: 컨트롤 노드에서 수신한 센서 데이터
+                        예: {"inflated_zones": [1, 3], "timestamp": "2025-11-29T10:30:00.123456"}
+        """
+        # Supabase 채널로 센서 데이터 브로드캐스팅
+        await self._server_client.async_broadcast_controls(self._device_id, sensor_data)
+
     async def process_cycle(self) -> CycleResult:
         """한 사이클 처리 후 결과 반환"""
         # (b) 시리얼 데이터 읽기 및 행렬 변환

@@ -243,3 +243,40 @@ class SupabaseClient(IServerClient):
         except Exception as e:
             self._logger.error(f"Error fetching controls for device {device_id}: {e}")
             return None
+
+    async def async_broadcast_controls(self, device_id: int, controls_data: dict) -> bool:
+        """컨트롤 노드로부터 받은 센서 데이터를 실시간 브로드캐스팅
+
+        Args:
+            device_id: 디바이스 ID
+            controls_data: 컨트롤 노드에서 수신한 센서 데이터
+                          예: {"inflated_zones": [1, 3], "timestamp": "2025-11-29T10:30:00.123456"}
+        """
+        if not self._client:
+            self._logger.error("Supabase client is not initialized")
+            return False
+
+        try:
+            if device_id in self._device_channels:
+                channel = self._device_channels[device_id]
+                await channel.send_broadcast(
+                    "controls",
+                    controls_data,
+                )
+                self._logger.debug(f"Controls broadcasted for device {device_id}: {controls_data}")
+                return True
+
+            # 새 채널 생성 및 구독
+            channel = self._client.channel(f"{device_id}")
+            self._device_channels[device_id] = channel
+
+            await channel.subscribe()
+            await channel.send_broadcast(
+                "controls",
+                controls_data,
+            )
+            self._logger.info(f"New channel created and controls broadcasted for device {device_id}")
+            return True
+        except Exception as e:
+            self._logger.error(f"Error broadcasting controls for device {device_id}: {e}")
+            return False

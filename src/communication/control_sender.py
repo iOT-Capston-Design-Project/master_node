@@ -19,6 +19,8 @@ class ControlSender(IControlNodeSender):
         self._listening = False
         self._listen_task: asyncio.Task | None = None
         self._logger = logging.getLogger("control_sender")
+        self._ack_event: asyncio.Event = asyncio.Event()
+        self._ack_received: bool = False
 
     async def connect(self) -> None:
         """컨트롤 노드 연결"""
@@ -38,19 +40,21 @@ class ControlSender(IControlNodeSender):
         if not self._writer:
             raise ConnectionError("Not connected to control node")
 
+        # ACK 이벤트 초기화
+        self._ack_event.clear()
+        self._ack_received = False
+
         message = json.dumps(packet.to_dict()).encode() + b"\n"
         self._writer.write(message)
         await self._writer.drain()
 
-        # ACK 대기
-        if self._reader:
-            response = await asyncio.wait_for(
-                self._reader.readline(),
-                timeout=5.0,
-            )
-            return response.strip() == b"ACK"
-
-        return False
+        # _listen_loop에서 ACK를 수신할 때까지 대기
+        try:
+            await asyncio.wait_for(self._ack_event.wait(), timeout=5.0)
+            return self._ack_received
+        except asyncio.TimeoutError:
+            self._logger.warning("ACK timeout")
+            return False
 
     def set_sensor_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         """센서 데이터 수신 콜백 설정
@@ -82,7 +86,7 @@ class ControlSender(IControlNodeSender):
         self._logger.info("Stopped listening for sensor data")
 
     async def _listen_loop(self) -> None:
-        """센서 데이터 수신 루프"""
+        """센서 데이터 및 ACK 수신 루프 (단일 reader로 모든 수신 처리)"""
         while self._listening and self._reader:
             try:
                 line = await self._reader.readline()
@@ -90,15 +94,27 @@ class ControlSender(IControlNodeSender):
                     self._logger.warning("Connection closed by control node")
                     break
 
-                data = json.loads(line.decode().strip())
+                text = line.decode().strip()
 
-                # inflated_zones 필드가 있으면 센서 데이터로 처리
-                if "inflated_zones" in data and self._sensor_callback:
-                    await self._sensor_callback(data)
-                    self._logger.debug(f"Received sensor data: {data}")
+                # ACK 응답 처리
+                if text == "ACK":
+                    self._ack_received = True
+                    self._ack_event.set()
+                    self._logger.debug("ACK received from control node")
+                    continue
 
-            except json.JSONDecodeError as e:
-                self._logger.warning(f"Invalid JSON received: {e}")
+                # JSON 데이터 파싱
+                try:
+                    data = json.loads(text)
+
+                    # inflated_zones 필드가 있으면 센서 데이터로 처리
+                    if "inflated_zones" in data and self._sensor_callback:
+                        await self._sensor_callback(data)
+                        self._logger.info(f"Received sensor data: {data}")
+
+                except json.JSONDecodeError as e:
+                    self._logger.warning(f"Invalid JSON received: {e}, raw: {text}")
+
             except asyncio.CancelledError:
                 break
             except Exception as e:

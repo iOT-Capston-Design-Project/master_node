@@ -115,3 +115,8 @@ class IServiceFacade(ABC):
     def get_device_id(self) -> int:
         """디바이스 ID 조회"""
         pass
+
+    @abstractmethod
+    def set_sensor_data_callback(self, callback) -> None:
+        """센서 데이터 수신 콜백 설정"""
+        pass

@@ -31,3 +31,8 @@ class IDisplay(ABC):
     def set_test_mode(self, enabled: bool) -> None:
         """테스트 모드 설정"""
         pass
+
+    @abstractmethod
+    def show_sensor_data(self, sensor_data: dict) -> None:
+        """컨트롤 노드에서 수신한 센서 데이터 표시"""
+        pass

@@ -96,6 +96,12 @@ class Application:
                 self._container.display.set_test_mode(True)
                 self._logger.warning("========== 테스트 모드로 실행 중 ==========")
 
+            # 센서 데이터 수신 콜백 설정 (TUI에 표시)
+            async def on_sensor_data(sensor_data: dict) -> None:
+                self._container.display.show_sensor_data(sensor_data)
+
+            self._container.service_facade.set_sensor_data_callback(on_sensor_data)
+
             # 초기화
             self._logger.info("애플리케이션 초기화 중...")
             await self._container.service_facade.initialize()

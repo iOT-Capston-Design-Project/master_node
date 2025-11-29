@@ -50,6 +50,7 @@ class ConsoleDisplay(IDisplay):
         self._serial_connected: bool = False
         self._control_connected: bool = False
         self._test_mode: bool = False
+        self._last_sensor_data: Optional[dict] = None
 
     def start_live(self) -> None:
         """Live 디스플레이 시작"""
@@ -241,6 +242,29 @@ class ConsoleDisplay(IDisplay):
 
         elements.append(control_table)
 
+        # 컨트롤 노드 센서 데이터 (현재 팽창된 존)
+        sensor_text = Text()
+        if self._last_sensor_data:
+            inflated_zones = self._last_sensor_data.get("inflated_zones", [])
+            if inflated_zones:
+                sensor_text.append("팽창 존: ", style="cyan")
+                sensor_text.append(", ".join(str(z) for z in inflated_zones), style="bold green")
+            else:
+                sensor_text.append("팽창 존: ", style="cyan")
+                sensor_text.append("없음", style="dim")
+
+            # 타임스탬프가 있으면 표시
+            if "timestamp" in self._last_sensor_data:
+                sensor_text.append(f"\n수신 시각: {self._last_sensor_data['timestamp']}", style="dim")
+
+            # mock 데이터 표시
+            if self._last_sensor_data.get("mock"):
+                sensor_text.append("\n[테스트 데이터]", style="yellow")
+        else:
+            sensor_text.append("[dim]수신 대기 중...[/dim]")
+
+        elements.append(Panel(sensor_text, title="컨트롤 노드 센서", border_style="magenta"))
+
         return Panel(Group(*elements), title="모니터링", border_style="blue")
 
     def _build_log_panel(self) -> Panel:
@@ -286,4 +310,9 @@ class ConsoleDisplay(IDisplay):
     def set_test_mode(self, enabled: bool) -> None:
         """테스트 모드 설정"""
         self._test_mode = enabled
+        self._refresh()
+
+    def show_sensor_data(self, sensor_data: dict) -> None:
+        """컨트롤 노드에서 수신한 센서 데이터 표시"""
+        self._last_sensor_data = sensor_data
         self._refresh()

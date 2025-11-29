@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 
 from interfaces.communication import (
     ISerialReader,
@@ -42,6 +42,7 @@ class ServiceFacade(IServiceFacade):
         self._alert_checker = alert_checker
         self._device_id = device_id
         self._patient: Optional[Patient] = None
+        self._sensor_data_callback: Optional[Callable[[dict], Awaitable[None]]] = None
 
     async def initialize(self) -> None:
         """초기화 - 환자 정보 로드"""
@@ -83,6 +84,14 @@ class ServiceFacade(IServiceFacade):
         """
         # Supabase 채널로 센서 데이터 브로드캐스팅
         await self._server_client.async_broadcast_controls(self._device_id, sensor_data)
+
+        # 외부 콜백 호출 (Display 업데이트 등)
+        if self._sensor_data_callback:
+            await self._sensor_data_callback(sensor_data)
+
+    def set_sensor_data_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
+        """센서 데이터 수신 콜백 설정"""
+        self._sensor_data_callback = callback
 
     async def process_cycle(self) -> CycleResult:
         """한 사이클 처리 후 결과 반환"""

@@ -142,13 +142,13 @@ class PressureLog:
     id: int
     day_id: int
     created_at: datetime
-    occiput: int
-    scapula: int
-    right_elbow: int
-    left_elbow: int
-    hip: int
-    right_heel: int
-    left_heel: int
+    occiput: bool
+    scapula: bool
+    right_elbow: bool
+    left_elbow: bool
+    hip: bool
+    right_heel: bool
+    left_heel: bool
     posture: PostureType = PostureType.UNKNOWN
     posture_change_required: bool = False
 
@@ -159,13 +159,13 @@ class PressureLog:
             id=int(data["id"]),
             day_id=int(data["day_id"]),
             created_at=created_at,
-            occiput=int(data["occiput"]),
-            scapula=int(data["scapula"]),
-            right_elbow=int(data["relbow"]),
-            left_elbow=int(data["lelbow"]),
-            hip=int(data["hip"]),
-            right_heel=int(data["rheel"]),
-            left_heel=int(data["lheel"]),
+            occiput=bool(data["occiput"]),
+            scapula=bool(data["scapula"]),
+            right_elbow=bool(data["relbow"]),
+            left_elbow=bool(data["lelbow"]),
+            hip=bool(data["hip"]),
+            right_heel=bool(data["rheel"]),
+            left_heel=bool(data["lheel"]),
             posture=PostureType(data["posture_type"]),
             posture_change_required=data["posture_change_required"],
         )
@@ -186,8 +186,8 @@ class PressureLog:
             "posture_change_required": self.posture_change_required,
         }
 
-    def get_pressure(self, body_part: BodyPart) -> int:
-        """부위별 압력값 반환"""
+    def is_pressed(self, body_part: BodyPart) -> bool:
+        """부위별 압력 여부 반환"""
         pressures = {
             BodyPart.OCCIPUT: self.occiput,
             BodyPart.SCAPULA: self.scapula,
@@ -197,7 +197,7 @@ class PressureLog:
             BodyPart.RIGHT_HEEL: self.right_heel,
             BodyPart.LEFT_HEEL: self.left_heel,
         }
-        return pressures.get(body_part, 0)
+        return pressures.get(body_part, False)
 
 
 @dataclass
@@ -217,14 +217,14 @@ class PostureDetectionResult:
 class ControlPacket:
     """컨트롤 노드로 전송할 통합 패킷"""
     posture: PostureType
-    pressures: dict[str, int]       # BodyPart.value -> 압력값
+    active_parts: list[str]         # 압력 받는 부위 목록 (BodyPart.value)
     durations: dict[str, int]       # BodyPart.value -> 지속시간(초)
     controls: Optional[dict] = None  # 서버에서 받은 제어 명령 (nullable)
 
     def to_dict(self) -> dict:
         return {
             "posture": self.posture.value,
-            "pressures": self.pressures,
+            "active_parts": self.active_parts,
             "durations": self.durations,
             "controls": self.controls,
         }

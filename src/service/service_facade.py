@@ -105,11 +105,11 @@ class ServiceFacade(IServiceFacade):
         detection_result = self._posture_detector.detect(pressure_matrix)
         posture = detection_result.posture_type
 
-        # (g) 압력 부위 분석
-        pressures = self._pressure_analyzer.analyze(posture, pressure_matrix)
+        # (g) 압력 받는 부위 분석
+        active_parts = self._pressure_analyzer.analyze(posture)
 
         # (h) 로그 기록
-        self._log_manager.record(pressures, posture)
+        self._log_manager.record(active_parts, posture)
         durations = self._log_manager.get_durations()
 
         # 자세 변경 필요 여부 확인
@@ -123,7 +123,7 @@ class ServiceFacade(IServiceFacade):
         daylog = self._log_manager.get_current_daylog()
         pressure_log = self._log_manager.create_pressure_log(
             day_id=daylog.id,
-            pressures=pressures,
+            active_parts=active_parts,
             posture=posture,
             posture_change_required=posture_change_required,
         )
@@ -138,7 +138,7 @@ class ServiceFacade(IServiceFacade):
         # 통합 패킷 생성
         control_packet = ControlPacket(
             posture=posture,
-            pressures={bp.value: v for bp, v in pressures.items()},
+            active_parts=[bp.value for bp in active_parts],
             durations={bp.value: v for bp, v in durations.items()},
             controls=controls,
         )

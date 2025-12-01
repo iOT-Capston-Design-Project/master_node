@@ -20,16 +20,16 @@ class LogManager(ILogManager):
         self._device_id = device_id
         self._current_daylog = DayLog.create_empty(device_id, date.today())
 
-    def record(self, pressures: dict[BodyPart, int], posture: PostureType) -> None:
+    def record(self, active_parts: list[BodyPart], posture: PostureType) -> None:
         """압력 지속 시간 기록"""
         # 자세가 변경되면 지속 시간 초기화
         if self._last_posture != posture:
             self.reset_durations()
             self._last_posture = posture
 
-        # 압력이 있는 부위의 지속 시간 증가
-        for body_part, pressure in pressures.items():
-            if pressure > 0:
+        # 압력 받는 부위의 지속 시간 증가
+        for body_part in BodyPart:
+            if body_part in active_parts:
                 self._durations[body_part] += self._cycle_interval_seconds
             else:
                 self._durations[body_part] = 0
@@ -80,7 +80,7 @@ class LogManager(ILogManager):
     def create_pressure_log(
         self,
         day_id: int,
-        pressures: dict[BodyPart, int],
+        active_parts: list[BodyPart],
         posture: PostureType,
         posture_change_required: bool,
     ) -> PressureLog:
@@ -89,13 +89,13 @@ class LogManager(ILogManager):
             id=0,  # 서버에서 생성
             day_id=day_id,
             created_at=datetime.now(),
-            occiput=pressures.get(BodyPart.OCCIPUT, 0),
-            scapula=pressures.get(BodyPart.SCAPULA, 0),
-            right_elbow=pressures.get(BodyPart.RIGHT_ELBOW, 0),
-            left_elbow=pressures.get(BodyPart.LEFT_ELBOW, 0),
-            hip=pressures.get(BodyPart.HIP, 0),
-            right_heel=pressures.get(BodyPart.RIGHT_HEEL, 0),
-            left_heel=pressures.get(BodyPart.LEFT_HEEL, 0),
+            occiput=BodyPart.OCCIPUT in active_parts,
+            scapula=BodyPart.SCAPULA in active_parts,
+            right_elbow=BodyPart.RIGHT_ELBOW in active_parts,
+            left_elbow=BodyPart.LEFT_ELBOW in active_parts,
+            hip=BodyPart.HIP in active_parts,
+            right_heel=BodyPart.RIGHT_HEEL in active_parts,
+            left_heel=BodyPart.LEFT_HEEL in active_parts,
             posture=posture,
             posture_change_required=posture_change_required,
         )

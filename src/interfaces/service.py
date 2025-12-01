@@ -26,8 +26,8 @@ class IPressureAnalyzer(ABC):
     """압력 분석 인터페이스 (g)"""
 
     @abstractmethod
-    def analyze(self, posture: PostureType, matrix: np.ndarray) -> dict[BodyPart, int]:
-        """자세를 기반으로 압력 부위별 값 분석"""
+    def analyze(self, posture: PostureType) -> list[BodyPart]:
+        """자세를 기반으로 압력 받는 부위 목록 반환"""
         pass
 
 
@@ -40,7 +40,7 @@ class ILogManager(ABC):
         pass
 
     @abstractmethod
-    def record(self, pressures: dict[BodyPart, int], posture: PostureType) -> None:
+    def record(self, active_parts: list[BodyPart], posture: PostureType) -> None:
         """압력 지속 시간 기록"""
         pass
 
@@ -58,7 +58,7 @@ class ILogManager(ABC):
     def create_pressure_log(
         self,
         day_id: int,
-        pressures: dict[BodyPart, int],
+        active_parts: list[BodyPart],
         posture: PostureType,
         posture_change_required: bool,
     ) -> PressureLog:

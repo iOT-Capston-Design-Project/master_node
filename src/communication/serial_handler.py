@@ -165,7 +165,16 @@ class SerialHandler(ISerialReader):
             if board_data:
                 self._boards[board_data.board] = board_data
 
-        return self._convert_to_matrix()
+        head, body = self._convert_to_matrix()
+
+        # 수신된 센서 데이터 요약 로그
+        self._logger.info(
+            f"센서 데이터 수신 완료 - "
+            f"head: min={head.min():.0f}, max={head.max():.0f}, "
+            f"body: min={body.min():.0f}, max={body.max():.0f}"
+        )
+
+        return head, body
 
     async def async_read(self) -> tuple[np.ndarray, np.ndarray]:
         """시리얼에서 데이터 읽기 (비동기, 별도 스레드에서 실행)

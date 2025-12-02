@@ -150,8 +150,10 @@ class ServiceFacade(IServiceFacade):
         # DayLog는 매 사이클 업데이트
         await self._server_client.async_update_daylog(daylog)
 
-        # 서버에서 controls 조회
-        controls = await self._server_client.async_fetch_device_controls(self._device_id)
+        # 서버에서 device 정보 조회 (controls, activate_air 포함)
+        device_data = await self._server_client.async_fetch_device(self._device_id)
+        controls = device_data.controls if device_data else None
+        activate_air = device_data.activate_air if device_data else False
 
         # 통합 패킷 생성
         control_packet = ControlPacket(
@@ -159,6 +161,7 @@ class ServiceFacade(IServiceFacade):
             active_parts=[bp.value for bp in active_parts],
             durations={bp.value: v for bp, v in durations.items()},
             controls=controls,
+            activate_air=activate_air,
         )
 
         # (c) 컨트롤 노드에 통합 패킷 전송

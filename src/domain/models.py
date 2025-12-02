@@ -57,6 +57,7 @@ class DeviceData:
     id: int
     created_at: datetime
     controls: Optional[dict] = None  # 서버에서 받은 제어 명령 (JSON, nullable)
+    activate_air: bool = False  # 에어셀 활성화 여부
 
     @staticmethod
     def from_dict(data: dict) -> "DeviceData":
@@ -65,6 +66,7 @@ class DeviceData:
             id=int(data["id"]),
             created_at=created_at,
             controls=data.get("controls"),
+            activate_air=bool(data.get("activate_air", False)),
         )
 
     def to_dict(self) -> dict:
@@ -72,6 +74,7 @@ class DeviceData:
             "id": self.id,
             "created_at": self.created_at.isoformat(),
             "controls": self.controls,
+            "activate_air": self.activate_air,
         }
 
 
@@ -220,6 +223,7 @@ class ControlPacket:
     active_parts: list[str]         # 압력 받는 부위 목록 (BodyPart.value)
     durations: dict[str, int]       # BodyPart.value -> 지속시간(초)
     controls: Optional[dict] = None  # 서버에서 받은 제어 명령 (nullable)
+    activate_air: bool = False       # 에어셀 활성화 여부
 
     def to_dict(self) -> dict:
         return {
@@ -227,6 +231,7 @@ class ControlPacket:
             "active_parts": self.active_parts,
             "durations": self.durations,
             "controls": self.controls,
+            "activate_air": self.activate_air,
         }
 
 

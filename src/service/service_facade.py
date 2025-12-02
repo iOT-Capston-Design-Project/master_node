@@ -97,8 +97,8 @@ class ServiceFacade(IServiceFacade):
 
     async def process_cycle(self) -> CycleResult:
         """한 사이클 처리 후 결과 반환"""
-        # (b) 시리얼 데이터 읽기
-        head, body = self._serial_reader.read()
+        # (b) 시리얼 데이터 읽기 (비동기로 별도 스레드에서 실행)
+        head, body = await self._serial_reader.async_read()
 
         # head (2, 3) + body (12, 7) → heatmap (14, 7)
         heatmap = self._heatmap_converter.convert(head, body)

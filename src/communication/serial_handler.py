@@ -1,3 +1,4 @@
+import asyncio
 import re
 import logging
 from typing import Optional
@@ -135,7 +136,7 @@ class SerialHandler(ISerialReader):
         return all(board in self._boards for board in BOARDS)
 
     def read(self) -> tuple[np.ndarray, np.ndarray]:
-        """시리얼에서 데이터 읽기 (블로킹)
+        """시리얼에서 데이터 읽기 (동기 블로킹)
 
         모든 7개 보드(UNO0~UNO6) 데이터가 수신될 때까지 대기 후
         (head, body) 튜플 반환
@@ -165,3 +166,13 @@ class SerialHandler(ISerialReader):
                 self._boards[board_data.board] = board_data
 
         return self._convert_to_matrix()
+
+    async def async_read(self) -> tuple[np.ndarray, np.ndarray]:
+        """시리얼에서 데이터 읽기 (비동기, 별도 스레드에서 실행)
+
+        동기 read()를 별도 스레드에서 실행하여 이벤트 루프를 블로킹하지 않음
+
+        Returns:
+            tuple: (head (2, 3), body (12, 7))
+        """
+        return await asyncio.to_thread(self.read)

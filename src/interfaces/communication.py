@@ -27,7 +27,16 @@ class ISerialReader(ABC):
 
     @abstractmethod
     def read(self) -> tuple[np.ndarray, np.ndarray]:
-        """시리얼에서 데이터 읽기 (블로킹)
+        """시리얼에서 데이터 읽기 (동기 블로킹)
+
+        Returns:
+            tuple: (head (2, 3), body (12, 7))
+        """
+        pass
+
+    @abstractmethod
+    async def async_read(self) -> tuple[np.ndarray, np.ndarray]:
+        """시리얼에서 데이터 읽기 (비동기, 별도 스레드에서 실행)
 
         Returns:
             tuple: (head (2, 3), body (12, 7))

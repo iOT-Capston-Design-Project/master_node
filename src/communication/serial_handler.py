@@ -150,20 +150,32 @@ class SerialHandler(ISerialReader):
         # 새 프레임 시작 - 이전 데이터 클리어
         self._boards.clear()
 
+        self._logger.info("시리얼 데이터 수신 대기 중...")
+        read_count = 0
+
         while not self._all_boards_received():
             raw_line = self._serial.readline()
+            read_count += 1
+
             if not raw_line:
+                self._logger.info(f"[{read_count}] 타임아웃 - 데이터 없음")
                 continue
 
             try:
                 line = raw_line.decode("utf-8").strip()
             except UnicodeDecodeError:
-                self._logger.warning(f"Unicode decode error: {raw_line}")
+                self._logger.warning(f"[{read_count}] Unicode decode error: {raw_line}")
                 continue
+
+            self._logger.info(f"[{read_count}] 수신: {line[:100]}")  # 최대 100자
 
             board_data = self._parse(line)
             if board_data:
                 self._boards[board_data.board] = board_data
+                received_boards = list(self._boards.keys())
+                self._logger.info(f"[{read_count}] 파싱 성공: {board_data.board}, 수신된 보드: {received_boards}")
+            else:
+                self._logger.info(f"[{read_count}] 파싱 실패 - 무시됨")
 
         head, body = self._convert_to_matrix()
 

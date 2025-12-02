@@ -80,22 +80,21 @@ class LogManager(ILogManager):
     def create_pressure_log(
         self,
         day_id: int,
-        active_parts: list[BodyPart],
         posture: PostureType,
         posture_change_required: bool,
     ) -> PressureLog:
-        """PressureLog 생성"""
+        """PressureLog 생성 - 부위별 누적 시간(초) 포함"""
         return PressureLog(
             id=0,  # 서버에서 생성
             day_id=day_id,
             created_at=datetime.now(),
-            occiput=BodyPart.OCCIPUT in active_parts,
-            scapula=BodyPart.SCAPULA in active_parts,
-            right_elbow=BodyPart.RIGHT_ELBOW in active_parts,
-            left_elbow=BodyPart.LEFT_ELBOW in active_parts,
-            hip=BodyPart.HIP in active_parts,
-            right_heel=BodyPart.RIGHT_HEEL in active_parts,
-            left_heel=BodyPart.LEFT_HEEL in active_parts,
+            occiput=self._durations[BodyPart.OCCIPUT],
+            scapula=self._durations[BodyPart.SCAPULA],
+            right_elbow=self._durations[BodyPart.RIGHT_ELBOW],
+            left_elbow=self._durations[BodyPart.LEFT_ELBOW],
+            hip=self._durations[BodyPart.HIP],
+            right_heel=self._durations[BodyPart.RIGHT_HEEL],
+            left_heel=self._durations[BodyPart.LEFT_HEEL],
             posture=posture,
             posture_change_required=posture_change_required,
         )

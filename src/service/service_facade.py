@@ -128,7 +128,6 @@ class ServiceFacade(IServiceFacade):
         daylog = self._log_manager.get_current_daylog()
         pressure_log = self._log_manager.create_pressure_log(
             day_id=daylog.id,
-            active_parts=active_parts,
             posture=posture,
             posture_change_required=posture_change_required,
         )

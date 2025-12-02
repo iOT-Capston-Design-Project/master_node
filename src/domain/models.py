@@ -138,17 +138,17 @@ class DayLog:
 
 @dataclass
 class PressureLog:
-    """개별 압력 측정 로그"""
+    """개별 압력 측정 로그 - 부위별 누적 시간(초) 저장"""
     id: int
     day_id: int
     created_at: datetime
-    occiput: bool
-    scapula: bool
-    right_elbow: bool
-    left_elbow: bool
-    hip: bool
-    right_heel: bool
-    left_heel: bool
+    occiput: int          # 후두부 누적 시간(초)
+    scapula: int          # 견갑골 누적 시간(초)
+    right_elbow: int      # 오른쪽 팔꿈치 누적 시간(초)
+    left_elbow: int       # 왼쪽 팔꿈치 누적 시간(초)
+    hip: int              # 엉덩이 누적 시간(초)
+    right_heel: int       # 오른쪽 발뒤꿈치 누적 시간(초)
+    left_heel: int        # 왼쪽 발뒤꿈치 누적 시간(초)
     posture: PostureType = PostureType.UNKNOWN
     posture_change_required: bool = False
 
@@ -159,13 +159,13 @@ class PressureLog:
             id=int(data["id"]),
             day_id=int(data["day_id"]),
             created_at=created_at,
-            occiput=bool(data["occiput"]),
-            scapula=bool(data["scapula"]),
-            right_elbow=bool(data["relbow"]),
-            left_elbow=bool(data["lelbow"]),
-            hip=bool(data["hip"]),
-            right_heel=bool(data["rheel"]),
-            left_heel=bool(data["lheel"]),
+            occiput=int(data["occiput"]),
+            scapula=int(data["scapula"]),
+            right_elbow=int(data["relbow"]),
+            left_elbow=int(data["lelbow"]),
+            hip=int(data["hip"]),
+            right_heel=int(data["rheel"]),
+            left_heel=int(data["lheel"]),
             posture=PostureType(data["posture_type"]),
             posture_change_required=data["posture_change_required"],
         )
@@ -186,9 +186,9 @@ class PressureLog:
             "posture_change_required": self.posture_change_required,
         }
 
-    def is_pressed(self, body_part: BodyPart) -> bool:
-        """부위별 압력 여부 반환"""
-        pressures = {
+    def get_duration(self, body_part: BodyPart) -> int:
+        """부위별 누적 시간 반환 (초)"""
+        durations = {
             BodyPart.OCCIPUT: self.occiput,
             BodyPart.SCAPULA: self.scapula,
             BodyPart.RIGHT_ELBOW: self.right_elbow,
@@ -197,7 +197,7 @@ class PressureLog:
             BodyPart.RIGHT_HEEL: self.right_heel,
             BodyPart.LEFT_HEEL: self.left_heel,
         }
-        return pressures.get(body_part, False)
+        return durations.get(body_part, 0)
 
 
 @dataclass

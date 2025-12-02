@@ -85,8 +85,13 @@ class ServiceFacade(IServiceFacade):
             sensor_data: 컨트롤 노드에서 수신한 센서 데이터
                         예: {"inflated_zones": [1, 3], "timestamp": "2025-11-29T10:30:00.123456"}
         """
+        import logging
+        logger = logging.getLogger("service_facade")
+        logger.info(f"Sensor data received from control node: {sensor_data}")
+
         # Supabase 채널로 센서 데이터 브로드캐스팅
-        await self._server_client.async_broadcast_controls(self._device_id, sensor_data)
+        result = await self._server_client.async_broadcast_controls(self._device_id, sensor_data)
+        logger.info(f"Broadcast result: {result}")
 
         # 외부 콜백 호출 (Display 업데이트 등)
         if self._sensor_data_callback:

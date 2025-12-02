@@ -14,7 +14,7 @@ from interfaces.service import (
     IAlertChecker,
     IServiceFacade,
 )
-from domain.models import Patient, CycleResult, ControlPacket
+from domain.models import Patient, CycleResult, ControlPacket, PressureLog
 from service.heatmap_converter import HeatmapConverter
 
 
@@ -46,6 +46,7 @@ class ServiceFacade(IServiceFacade):
         self._device_id = device_id
         self._patient: Optional[Patient] = None
         self._sensor_data_callback: Optional[Callable[[dict], Awaitable[None]]] = None
+        self._current_pressure_log: Optional[PressureLog] = None  # 현재 자세의 PressureLog
 
     async def initialize(self) -> None:
         """초기화 - 환자 정보 로드"""
@@ -124,17 +125,27 @@ class ServiceFacade(IServiceFacade):
                 self._patient, durations
             )
 
-        # PressureLog 생성 (자세 변경 시에만)
+        # PressureLog 처리
         daylog = self._log_manager.get_current_daylog()
-        pressure_log = None
+
         if posture_changed:
-            pressure_log = self._log_manager.create_pressure_log(
+            # 자세 변경 시 새 PressureLog 생성
+            self._current_pressure_log = self._log_manager.create_pressure_log(
                 day_id=daylog.id,
                 posture=posture,
                 posture_change_required=posture_change_required,
             )
-            # (a) 서버에 로그 업로드
-            await self._server_client.async_create_pressurelog(pressure_log)
+            # (a) 서버에 새 로그 생성
+            created_log = await self._server_client.async_create_pressurelog(self._current_pressure_log)
+            if created_log:
+                self._current_pressure_log = created_log  # 서버에서 반환된 id 저장
+        elif self._current_pressure_log:
+            # 자세 유지 시 기존 PressureLog 업데이트
+            self._current_pressure_log = self._log_manager.update_pressure_log(
+                self._current_pressure_log,
+                posture_change_required=posture_change_required,
+            )
+            await self._server_client.async_update_pressurelog(self._current_pressure_log)
 
         # DayLog는 매 사이클 업데이트
         await self._server_client.async_update_daylog(daylog)
@@ -164,7 +175,7 @@ class ServiceFacade(IServiceFacade):
 
         return CycleResult(
             posture=posture,
-            pressure_log=pressure_log,
+            pressure_log=self._current_pressure_log,
             control_packet=control_packet,
             alert_sent=alert_sent,
             posture_change_required=posture_change_required,

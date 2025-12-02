@@ -108,6 +108,22 @@ class LogManager(ILogManager):
             posture_change_required=posture_change_required,
         )
 
+    def update_pressure_log(
+        self,
+        pressure_log: PressureLog,
+        posture_change_required: bool,
+    ) -> PressureLog:
+        """기존 PressureLog의 누적 시간 업데이트"""
+        pressure_log.occiput = self._durations[BodyPart.OCCIPUT]
+        pressure_log.scapula = self._durations[BodyPart.SCAPULA]
+        pressure_log.right_elbow = self._durations[BodyPart.RIGHT_ELBOW]
+        pressure_log.left_elbow = self._durations[BodyPart.LEFT_ELBOW]
+        pressure_log.hip = self._durations[BodyPart.HIP]
+        pressure_log.right_heel = self._durations[BodyPart.RIGHT_HEEL]
+        pressure_log.left_heel = self._durations[BodyPart.LEFT_HEEL]
+        pressure_log.posture_change_required = posture_change_required
+        return pressure_log
+
     def reset_durations(self) -> None:
         """지속 시간 초기화"""
         self._durations = {part: 0 for part in BodyPart}

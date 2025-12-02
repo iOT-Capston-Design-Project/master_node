@@ -126,6 +126,12 @@ class Application:
                 await self._container.control_sender.start_listening()
                 self._logger.info("센서 데이터 수신 대기 시작")
 
+            # 초기 연결 상태 표시
+            self._container.display.show_connection_status(
+                serial_connected=self._serial_connected,
+                control_connected=self._control_connected
+            )
+
             self._logger.info("모니터링 시작")
 
             # 메인 루프
@@ -151,12 +157,14 @@ class Application:
 
                     last_retry_time = current_time
 
+                # 연결 상태 업데이트
+                self._container.display.show_connection_status(
+                    serial_connected=self._serial_connected,
+                    control_connected=self._control_connected
+                )
+
                 # 시리얼이 연결되지 않은 경우 대기
                 if not self._serial_connected:
-                    self._container.display.show_connection_status(
-                        serial_connected=False,
-                        control_connected=self._control_connected
-                    )
                     await asyncio.sleep(1.0)
                     continue
 

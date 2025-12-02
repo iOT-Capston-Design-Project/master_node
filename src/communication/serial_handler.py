@@ -114,7 +114,6 @@ class SerialHandler(ISerialReader):
                     self._boards[data.board] = data
                     self._revision += 1
                     self._update_cv.notify_all()
-                    self._logger.info(f"[{port}] {data.board} 데이터 업데이트: {len(data.data)}개 채널")
 
         except Exception as e:
             self._logger.error(f"[{port}] 스레드 오류: {e}")
@@ -223,14 +222,7 @@ class SerialHandler(ISerialReader):
                 self._update_cv.wait(timeout=remaining)
 
         with self._boards_lock:
-            received_boards = list(self._boards.keys())
             head, body = self._convert_to_matrix()
-
-        self._logger.info(
-            f"센서 데이터 반환 - 수신 보드: {received_boards}, "
-            f"head: min={head.min():.0f}, max={head.max():.0f}, "
-            f"body: min={body.min():.0f}, max={body.max():.0f}"
-        )
 
         return head, body
 

@@ -162,6 +162,7 @@ class SupabaseClient(IServerClient):
             self._logger.info(f"Creating pressurelog for day: {pressurelog.day_id}")
             data = pressurelog.to_dict()
             del data["id"]  # id는 서버에서 생성
+            self._logger.info(f"Pressurelog data to insert: {data}")
             response = await self._client.table("pressure_logs").insert(data).execute()
             if response.data:
                 self._logger.info(f"Pressurelog created successfully")

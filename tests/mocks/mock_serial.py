@@ -22,7 +22,7 @@ class MockSerialHandler(ISerialReader):
     def disconnect(self) -> None:
         self._connected = False
 
-    def read(self) -> tuple[np.ndarray, np.ndarray]:
+    def read(self, timeout: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
         """Mock 데이터 반환 - head (2, 3), body (12, 7)"""
         if self._preset_head is not None and self._preset_body is not None:
             return self._preset_head, self._preset_body
@@ -44,9 +44,9 @@ class MockSerialHandler(ISerialReader):
 
         return head, body
 
-    async def async_read(self) -> tuple[np.ndarray, np.ndarray]:
+    async def async_read(self, timeout: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
         """비동기 Mock 데이터 반환"""
-        return await asyncio.to_thread(self.read)
+        return await asyncio.to_thread(self.read, timeout)
 
     def set_data(self, head: np.ndarray, body: np.ndarray) -> None:
         """테스트용 데이터 설정"""

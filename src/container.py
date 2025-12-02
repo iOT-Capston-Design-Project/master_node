@@ -44,8 +44,8 @@ class Container:
 def create_container(settings: Settings) -> Container:
     """의존성 구성 (test_mode에 따라 Mock 사용)"""
 
-    # 통신 계층
-    serial_reader = SerialHandler(settings.serial_port, settings.baudrate)
+    # 통신 계층 (멀티포트 자동 탐색)
+    serial_reader = SerialHandler(settings.baudrate)
     server_client = SupabaseClient(settings.supabase_url, settings.supabase_key)
 
     # 테스트 모드에서는 MockControlSender 사용

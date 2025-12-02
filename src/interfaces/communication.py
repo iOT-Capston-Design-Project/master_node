@@ -26,8 +26,11 @@ class ISerialReader(ABC):
         pass
 
     @abstractmethod
-    def read(self) -> tuple[np.ndarray, np.ndarray]:
-        """시리얼에서 데이터 읽기 (동기 블로킹)
+    def read(self, timeout: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
+        """시리얼에서 데이터 읽기 (동기)
+
+        Args:
+            timeout: 데이터 수신 대기 시간
 
         Returns:
             tuple: (head (2, 3), body (12, 7))
@@ -35,8 +38,11 @@ class ISerialReader(ABC):
         pass
 
     @abstractmethod
-    async def async_read(self) -> tuple[np.ndarray, np.ndarray]:
-        """시리얼에서 데이터 읽기 (비동기, 별도 스레드에서 실행)
+    async def async_read(self, timeout: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
+        """시리얼에서 데이터 읽기 (비동기)
+
+        Args:
+            timeout: 데이터 수신 대기 시간
 
         Returns:
             tuple: (head (2, 3), body (12, 7))

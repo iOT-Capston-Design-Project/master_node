@@ -1,8 +1,11 @@
 import asyncio
 import re
 import logging
-from typing import Optional
+import threading
+import time
+from typing import Optional, Callable
 from datetime import datetime
+from glob import glob
 
 import numpy as np
 import serial
@@ -24,38 +27,107 @@ class BoardData:
 
 
 class SerialHandler(ISerialReader):
-    """시리얼 통신 구현체 (b) - 텍스트 파싱 방식"""
+    """시리얼 통신 구현체 - 멀티포트 지원"""
 
-    def __init__(self, port: str, baudrate: int = 115200, timeout: float = 2.0):
-        self._port = port
+    def __init__(self, baudrate: int = 115200, timeout: float = 2.0):
         self._baudrate = baudrate
         self._timeout = timeout
-        self._serial: Optional[serial.Serial] = None
-        self._boards: dict[str, BoardData] = {}
         self._logger = logging.getLogger("SerialHandler")
 
+        # 멀티포트 관련
+        self._ports: list[str] = []
+        self._threads: list[threading.Thread] = []
+        self._stop_event = threading.Event()
+
+        # 보드 데이터 (스레드 간 공유)
+        self._boards: dict[str, BoardData] = {}
+        self._boards_lock = threading.Lock()
+        self._update_cv = threading.Condition(self._boards_lock)
+        self._revision = 0
+
+    def _find_ports(self) -> list[str]:
+        """사용 가능한 시리얼 포트 탐색"""
+        ports = sorted(glob("/dev/ttyACM*") + glob("/dev/ttyUSB*"))
+        self._logger.info(f"발견된 포트: {ports}")
+        return ports
+
     def connect(self) -> None:
-        """시리얼 포트 연결"""
-        self._serial = serial.Serial(
-            port=self._port,
-            baudrate=self._baudrate,
-            timeout=self._timeout,
-        )
-        self._logger.info(f"Serial connection established for {self._port}")
+        """시리얼 포트 연결 및 스레드 시작"""
+        self._ports = self._find_ports()
+        if not self._ports:
+            raise ConnectionError("사용 가능한 시리얼 포트가 없습니다")
+
+        self._stop_event.clear()
+        self._start_threads()
+        self._logger.info(f"{len(self._ports)}개 포트 연결 완료")
 
     def disconnect(self) -> None:
-        """시리얼 포트 연결 해제"""
-        if self._serial and self._serial.is_open:
-            self._serial.close()
-            self._logger.info(f"Serial connection closed for {self._port}")
+        """모든 시리얼 연결 해제"""
+        self._stop_event.set()
+        for thread in self._threads:
+            thread.join(timeout=3.0)
+        self._threads.clear()
+        self._ports.clear()
+        self._logger.info("모든 시리얼 스레드 종료")
 
-    def _parse(self, line: str) -> Optional[BoardData]:
-        """텍스트 라인을 파싱하여 BoardData 반환
+    def _start_threads(self) -> None:
+        """각 포트별 스레드 시작"""
+        for port in self._ports:
+            thread = threading.Thread(
+                target=self._serial_thread,
+                args=(port,),
+                daemon=True,
+                name=f"Serial-{port}"
+            )
+            self._threads.append(thread)
+            thread.start()
+            self._logger.info(f"스레드 시작: {port}")
 
-        지원 포맷:
-        1) UNO{n}_Ck : v (예: UNO0_C0:123)
-        2) [UNO{n}] Ck=v (예: [UNO0] C0=123)
-        """
+    def _serial_thread(self, port: str) -> None:
+        """개별 포트 읽기 스레드"""
+        s = None
+        try:
+            s = serial.Serial(port, self._baudrate, timeout=self._timeout)
+            self._logger.info(f"[{port}] 연결 성공")
+
+            # 아두이노 리셋 대기
+            time.sleep(2.0)
+            s.reset_input_buffer()
+            self._logger.info(f"[{port}] 버퍼 초기화 완료")
+
+            while not self._stop_event.is_set():
+                line = s.readline()
+                if not line:
+                    continue
+
+                try:
+                    line = line.decode("utf-8").strip()
+                except UnicodeDecodeError:
+                    self._logger.warning(f"[{port}] Unicode decode error")
+                    continue
+
+                data = self._parse(line, port)
+                if not data:
+                    continue
+
+                with self._update_cv:
+                    self._boards[data.board] = data
+                    self._revision += 1
+                    self._update_cv.notify_all()
+                    self._logger.info(f"[{port}] {data.board} 데이터 업데이트: {len(data.data)}개 채널")
+
+        except Exception as e:
+            self._logger.error(f"[{port}] 스레드 오류: {e}")
+        finally:
+            if s is not None:
+                try:
+                    s.close()
+                    self._logger.info(f"[{port}] 연결 해제")
+                except Exception:
+                    pass
+
+    def _parse(self, line: str, port: str) -> Optional[BoardData]:
+        """텍스트 라인 파싱"""
         line = line.strip()
         if not line:
             return None
@@ -69,7 +141,7 @@ class SerialHandler(ISerialReader):
                 ch = int(m.group(2))
                 val = int(m.group(3))
                 data[f"{board}C{ch}"] = val
-            self._logger.debug(f"Parsed UNO format: {board} -> {data}")
+            self._logger.debug(f"[{port}] UNO 포맷 파싱: {board} -> {data}")
             return BoardData(board, datetime.now(), data)
 
         # 포맷 2: [UNO{n}] Ck=v
@@ -83,10 +155,10 @@ class SerialHandler(ISerialReader):
                 ch = int(m.group(1))
                 val = int(m.group(2))
                 data[f"{board}C{ch}"] = val
-            self._logger.debug(f"Parsed bracket format: {board} -> {data}")
+            self._logger.debug(f"[{port}] 브래킷 포맷 파싱: {board} -> {data}")
             return BoardData(board, datetime.now(), data)
 
-        self._logger.warning(f"Failed to parse line: {line}")
+        self._logger.debug(f"[{port}] 파싱 실패: {line[:50]}")
         return None
 
     def _convert_to_matrix(self) -> tuple[np.ndarray, np.ndarray]:
@@ -117,8 +189,7 @@ class SerialHandler(ISerialReader):
                         head[1][c] = val
             else:
                 # UNO1~UNO6: body (12, 7)
-                # 각 보드당 2행, C0~C6 → 첫 번째 행, C7~C13 → 두 번째 행
-                body_top = top - 2  # UNO1부터 body 인덱스 0
+                body_top = top - 2
                 body_bottom = bottom - 2
                 for c in range(7):
                     val = data.get(f"{board}C{c}")
@@ -131,69 +202,42 @@ class SerialHandler(ISerialReader):
 
         return head, body
 
-    def _all_boards_received(self) -> bool:
-        """모든 7개 보드 데이터가 수신되었는지 확인"""
-        return all(board in self._boards for board in BOARDS)
+    def read(self, timeout: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
+        """현재 수집된 데이터 반환 (동기)
 
-    def read(self) -> tuple[np.ndarray, np.ndarray]:
-        """시리얼에서 데이터 읽기 (동기 블로킹)
-
-        모든 7개 보드(UNO0~UNO6) 데이터가 수신될 때까지 대기 후
-        (head, body) 튜플 반환
+        Args:
+            timeout: 최소 1개 보드 데이터 수신 대기 시간
 
         Returns:
             tuple: (head (2, 3), body (12, 7))
         """
-        if not self._serial or not self._serial.is_open:
-            raise ConnectionError("Serial port is not connected")
+        start_time = time.time()
 
-        # 새 프레임 시작 - 이전 데이터 클리어
-        self._boards.clear()
+        # 최소 1개 이상의 보드 데이터가 있을 때까지 대기
+        with self._update_cv:
+            while not self._boards:
+                remaining = timeout - (time.time() - start_time)
+                if remaining <= 0:
+                    self._logger.warning("데이터 수신 타임아웃")
+                    break
+                self._update_cv.wait(timeout=remaining)
 
-        self._logger.info("시리얼 데이터 수신 대기 중...")
-        read_count = 0
+        with self._boards_lock:
+            received_boards = list(self._boards.keys())
+            head, body = self._convert_to_matrix()
 
-        while not self._all_boards_received():
-            raw_line = self._serial.readline()
-            read_count += 1
-
-            if not raw_line:
-                self._logger.info(f"[{read_count}] 타임아웃 - 데이터 없음")
-                continue
-
-            try:
-                line = raw_line.decode("utf-8").strip()
-            except UnicodeDecodeError:
-                self._logger.warning(f"[{read_count}] Unicode decode error: {raw_line}")
-                continue
-
-            self._logger.info(f"[{read_count}] 수신: {line[:100]}")  # 최대 100자
-
-            board_data = self._parse(line)
-            if board_data:
-                self._boards[board_data.board] = board_data
-                received_boards = list(self._boards.keys())
-                self._logger.info(f"[{read_count}] 파싱 성공: {board_data.board}, 수신된 보드: {received_boards}")
-            else:
-                self._logger.info(f"[{read_count}] 파싱 실패 - 무시됨")
-
-        head, body = self._convert_to_matrix()
-
-        # 수신된 센서 데이터 요약 로그
         self._logger.info(
-            f"센서 데이터 수신 완료 - "
+            f"센서 데이터 반환 - 수신 보드: {received_boards}, "
             f"head: min={head.min():.0f}, max={head.max():.0f}, "
             f"body: min={body.min():.0f}, max={body.max():.0f}"
         )
 
         return head, body
 
-    async def async_read(self) -> tuple[np.ndarray, np.ndarray]:
-        """시리얼에서 데이터 읽기 (비동기, 별도 스레드에서 실행)
-
-        동기 read()를 별도 스레드에서 실행하여 이벤트 루프를 블로킹하지 않음
+    async def async_read(self, timeout: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
+        """현재 수집된 데이터 반환 (비동기)
 
         Returns:
             tuple: (head (2, 3), body (12, 7))
         """
-        return await asyncio.to_thread(self.read)
+        return await asyncio.to_thread(self.read, timeout)

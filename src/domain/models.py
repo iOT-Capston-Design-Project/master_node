@@ -243,7 +243,7 @@ class AlertMessage:
 class CycleResult:
     """한 사이클 처리 결과"""
     posture: PostureType
-    pressure_log: PressureLog
+    pressure_log: Optional[PressureLog]  # 자세 변경 시에만 생성
     control_packet: ControlPacket
     alert_sent: bool
     posture_change_required: bool

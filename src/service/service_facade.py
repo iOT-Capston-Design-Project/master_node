@@ -114,7 +114,7 @@ class ServiceFacade(IServiceFacade):
         active_parts = self._pressure_analyzer.analyze(posture)
 
         # (h) 로그 기록
-        self._log_manager.record(active_parts, posture)
+        posture_changed = self._log_manager.record(active_parts, posture)
         durations = self._log_manager.get_durations()
 
         # 자세 변경 필요 여부 확인
@@ -124,16 +124,19 @@ class ServiceFacade(IServiceFacade):
                 self._patient, durations
             )
 
-        # PressureLog 생성
+        # PressureLog 생성 (자세 변경 시에만)
         daylog = self._log_manager.get_current_daylog()
-        pressure_log = self._log_manager.create_pressure_log(
-            day_id=daylog.id,
-            posture=posture,
-            posture_change_required=posture_change_required,
-        )
+        pressure_log = None
+        if posture_changed:
+            pressure_log = self._log_manager.create_pressure_log(
+                day_id=daylog.id,
+                posture=posture,
+                posture_change_required=posture_change_required,
+            )
+            # (a) 서버에 로그 업로드
+            await self._server_client.async_create_pressurelog(pressure_log)
 
-        # (a) 서버에 로그 업로드
-        await self._server_client.async_create_pressurelog(pressure_log)
+        # DayLog는 매 사이클 업데이트
         await self._server_client.async_update_daylog(daylog)
 
         # 서버에서 controls 조회

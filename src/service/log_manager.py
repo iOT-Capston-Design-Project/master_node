@@ -20,12 +20,19 @@ class LogManager(ILogManager):
         self._device_id = device_id
         self._current_daylog = DayLog.create_empty(device_id, date.today())
 
-    def record(self, active_parts: list[BodyPart], posture: PostureType) -> None:
-        """압력 지속 시간 기록"""
+    def record(self, active_parts: list[BodyPart], posture: PostureType) -> bool:
+        """압력 지속 시간 기록
+
+        Returns:
+            bool: 자세가 변경되었으면 True
+        """
+        posture_changed = False
+
         # 자세가 변경되면 지속 시간 초기화
         if self._last_posture != posture:
             self.reset_durations()
             self._last_posture = posture
+            posture_changed = True
 
         # 압력 받는 부위의 지속 시간 증가
         for body_part in BodyPart:
@@ -36,6 +43,8 @@ class LogManager(ILogManager):
 
         # DayLog 누적값 업데이트
         self._update_daylog_totals()
+
+        return posture_changed
 
     def _update_daylog_totals(self) -> None:
         """DayLog 누적값 업데이트"""

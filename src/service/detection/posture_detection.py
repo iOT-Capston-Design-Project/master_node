@@ -39,9 +39,18 @@ class PostureDetectionModel:
         return True
 
     def _convert(self, heatmap: np.ndarray) -> np.ndarray:
-        """(16, 7)를 -> (1, 90)로 변경 (2행씩 묶어서 진행)"""
-        head = heatmap[0:2, [0, 3, 6]].flatten().reshape(1, 6)  # 2x3으로 변경 -> 1x6으로 변경
-        body = heatmap[2:14, :].flatten().reshape(1, 84)  # 12x7 -> 1x84로 변경
+        """(14, 7)를 -> (1, 90)로 변경
+
+        Args:
+            heatmap: (14, 7) 형태의 히트맵
+                - 0~1행: head (보간된 2x7에서 0,3,6열 추출)
+                - 2~13행: body (12x7)
+
+        Returns:
+            (1, 90) 형태의 피처 벡터
+        """
+        head = heatmap[0:2, [0, 3, 6]].flatten().reshape(1, 6)  # 2x3 -> 1x6
+        body = heatmap[2:14, :].flatten().reshape(1, 84)  # 12x7 -> 1x84
         return np.concatenate([head, body], axis=1)
 
     def detect(self, pressure_map: np.ndarray) -> PostureDetectionResult:

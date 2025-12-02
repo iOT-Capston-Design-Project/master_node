@@ -15,6 +15,7 @@ from interfaces.service import (
     IServiceFacade,
 )
 from domain.models import Patient, CycleResult, ControlPacket
+from service.heatmap_converter import HeatmapConverter
 
 
 class ServiceFacade(IServiceFacade):
@@ -30,6 +31,7 @@ class ServiceFacade(IServiceFacade):
         pressure_analyzer: IPressureAnalyzer,
         log_manager: ILogManager,
         alert_checker: IAlertChecker,
+        heatmap_converter: HeatmapConverter,
         device_id: int,
     ):
         self._serial_reader = serial_reader
@@ -40,6 +42,7 @@ class ServiceFacade(IServiceFacade):
         self._pressure_analyzer = pressure_analyzer
         self._log_manager = log_manager
         self._alert_checker = alert_checker
+        self._heatmap_converter = heatmap_converter
         self._device_id = device_id
         self._patient: Optional[Patient] = None
         self._sensor_data_callback: Optional[Callable[[dict], Awaitable[None]]] = None
@@ -94,15 +97,17 @@ class ServiceFacade(IServiceFacade):
 
     async def process_cycle(self) -> CycleResult:
         """한 사이클 처리 후 결과 반환"""
-        # (b) 시리얼 데이터 읽기 및 행렬 변환
-        raw_data = self._serial_reader.read_raw()
-        pressure_matrix = self._serial_reader.to_matrix(raw_data)
+        # (b) 시리얼 데이터 읽기
+        head, body = self._serial_reader.read()
+
+        # head (2, 3) + body (12, 7) → heatmap (14, 7)
+        heatmap = self._heatmap_converter.convert(head, body)
 
         # 히트맵 실시간 업데이트
-        await self._server_client.async_update_heatmap(self._device_id, pressure_matrix)
+        await self._server_client.async_update_heatmap(self._device_id, heatmap)
 
         # (f) 자세 추론
-        detection_result = self._posture_detector.detect(pressure_matrix)
+        detection_result = self._posture_detector.detect(heatmap)
         posture = detection_result.posture_type
 
         # (g) 압력 받는 부위 분석

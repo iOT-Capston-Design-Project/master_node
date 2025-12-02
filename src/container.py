@@ -23,6 +23,7 @@ from service.posture_detector import PostureDetector
 from service.pressure_analyzer import PressureAnalyzer
 from service.log_manager import LogManager
 from service.alert_service import AlertChecker
+from service.heatmap_converter import HeatmapConverter
 from service.service_facade import ServiceFacade
 
 from presentation.console_display import ConsoleDisplay
@@ -62,6 +63,7 @@ def create_container(settings: Settings) -> Container:
     pressure_analyzer = PressureAnalyzer()
     log_manager = LogManager(settings.device_id)
     alert_checker = AlertChecker()
+    heatmap_converter = HeatmapConverter()
 
     service_facade = ServiceFacade(
         serial_reader=serial_reader,
@@ -72,6 +74,7 @@ def create_container(settings: Settings) -> Container:
         pressure_analyzer=pressure_analyzer,
         log_manager=log_manager,
         alert_checker=alert_checker,
+        heatmap_converter=heatmap_converter,
         device_id=settings.device_id,
     )
 

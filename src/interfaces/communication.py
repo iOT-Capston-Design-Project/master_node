@@ -26,13 +26,12 @@ class ISerialReader(ABC):
         pass
 
     @abstractmethod
-    def read_raw(self) -> bytes:
-        """시리얼에서 원시 데이터 읽기"""
-        pass
+    def read(self) -> tuple[np.ndarray, np.ndarray]:
+        """시리얼에서 데이터 읽기 (블로킹)
 
-    @abstractmethod
-    def to_matrix(self, data: bytes) -> np.ndarray:
-        """원시 데이터를 행렬로 변환"""
+        Returns:
+            tuple: (head (2, 3), body (12, 7))
+        """
         pass
 
 

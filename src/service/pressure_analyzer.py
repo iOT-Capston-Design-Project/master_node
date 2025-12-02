@@ -45,9 +45,9 @@ class PressureAnalyzer(IPressureAnalyzer):
         PostureType.SITTING: [
             BodyPart.HIP,
         ],
-        PostureType.UNKNOWN: list(BodyPart),
+        PostureType.UNKNOWN: [],  # 미확인 시 사용자 없음 - 압력 부위 없음
     }
 
     def analyze(self, posture: PostureType) -> list[BodyPart]:
         """자세를 기반으로 압력 받는 부위 목록 반환"""
-        return self.POSTURE_BODY_PARTS.get(posture, list(BodyPart))
+        return self.POSTURE_BODY_PARTS.get(posture, [])

@@ -28,13 +28,12 @@ class LogManager(ILogManager):
         """
         posture_changed = False
 
-        # 자세가 변경되면 지속 시간 초기화
+        # 자세가 변경되었는지 확인
         if self._last_posture != posture:
-            self.reset_durations()
             self._last_posture = posture
             posture_changed = True
 
-        # 압력 받는 부위의 지속 시간 증가
+        # 압력 받는 부위는 지속 시간 증가, 없는 부위는 초기화
         for body_part in BodyPart:
             if body_part in active_parts:
                 self._durations[body_part] += self._cycle_interval_seconds
